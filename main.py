@@ -23,3 +23,5 @@ rows = np.arange(N - 5, N)
 for row_id in rows:
     text = tr_text_list[row_id]
     print("row %5d | y = %d | %s" % (row_id, y_train_df.values[row_id, 0], text))
+
+print("test")
