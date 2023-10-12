@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-import tokenize_text as tokenize
+import text_process as tokenize
 
 data_dir = 'data_reviews'
 x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))

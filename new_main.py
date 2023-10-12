@@ -4,6 +4,7 @@ import pandas as pd
 import sklearn.linear_model
 import sklearn.pipeline
 from sklearn.feature_extraction.text import CountVectorizer
+import text_process
 
 data_dir = 'data_reviews'
 x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
