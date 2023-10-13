@@ -149,9 +149,8 @@ yhat_test_N = new_pipeline.predict_proba(test_text_list)
 
 
 float_y_test = yhat_test_N[:,1]
-float_y_test_col = float_y_test.reshape(:,600)
 
-print(float_y_test_col)
-f = open("yproba1_test.txt", "w")
-f.write(str(float_y_test))
-f.close()
+print(float_y_test)
+
+print(float_y_test.T)
+
