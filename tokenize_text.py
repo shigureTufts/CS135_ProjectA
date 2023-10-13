@@ -16,7 +16,8 @@ def tokenize_text(raw_text):
     for pp in range(len(list_of_tokens)):
         cur_token = list_of_tokens[pp]
         # Remove punctuation
-        for punc in ['?', '!', '_', '.', ',', '"', '/']:
+        for punc in ['?', '!', '_', '.', ',', '"', '/', '-', '1', '2', '3', '4', '5',
+                     '6', '7', '8', '9', '0', '&', '\'']:
             cur_token = cur_token.replace(punc, "")
         # Turn to lower case
         clean_token = cur_token.lower()
