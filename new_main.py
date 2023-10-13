@@ -27,7 +27,8 @@ vocab_list = ['good', 'great', 'like', 'bad', 'best', 'love', 'excellent', 'bett
               'poor', 'friendly', 'loved', 'delicious', 'horrible', 'cool', 'happy', 'awesome', 'awful',
               'stupid', 'perfect', 'impressed', 'comfortable', 'fantastic', 'beautiful', 'interesting',
               'perfectly', 'disappointing', 'super', 'fast', 'problem', 'bland', 'worse', 'enjoyed', 'fresh',
-              'avoid', 'incredible', 'didn\'t work', 'weird', 'useless', 'enjoy']
+              'avoid', 'incredible', 'didn\'t work', 'weird', 'useless', 'enjoy',
+              'sucked', 'disappointment', 'unfortunately', 'mediocre', 'recommended', 'pleased', 'junk']
 
 vocab_dict = dict()
 
@@ -107,13 +108,18 @@ print(var)
 # # print(result[:, np.newaxis])
 
 
-my_bow_classifier_pipeline.fit(tr_text_list, y_true)
 
-
-
-yhat_tr_N = my_bow_classifier_pipeline.predict(tr_text_list)
 
 # print(yhat_tr_N[:,np.newaxis])
 
+
+new_pipeline = sklearn.pipeline.Pipeline([
+    ('my_bow_feature_extractor', CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1),
+                                                 vocabulary=vocab_dict, binary=False)),
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=100.0, max_iter=10000, random_state=101))
+])
+
+new_pipeline.fit(tr_text_list, y_true)
+yhat_tr_N = new_pipeline.predict(tr_text_list)
 acc = np.mean(y_true == yhat_tr_N)
 print(acc)
