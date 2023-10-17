@@ -84,7 +84,7 @@ print(dense_arr_NV.shape)
 my_bow_classifier_pipeline = sklearn.pipeline.Pipeline([
     ('my_bow_feature_extractor',
      CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=1000, random_state=101))
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101, solver='saga'))
 ])
 
 my_parameter_grid_by_name = dict()
@@ -108,7 +108,7 @@ grid_searcher = sklearn.model_selection.GridSearchCV(
     my_bow_classifier_pipeline,
     my_parameter_grid_by_name,
     scoring=my_scoring_metric_name,
-    cv=my_splitter,
+    cv=5,
     refit=False)
 
 grid_searcher.fit(tr_text_list, y_true)
@@ -150,7 +150,42 @@ yhat_test_N = new_pipeline.predict_proba(test_text_list)
 
 float_y_test = yhat_test_N[:,1]
 
-print(float_y_test)
+# print(float_y_test)
+#
+# print(float_y_test.T)
 
-print(float_y_test.T)
+my_parameter_rand_by_name = dict()
+my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
+my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1,2,1000)
 
+rand_searcher = sklearn.model_selection.RandomizedSearchCV(
+    my_bow_classifier_pipeline,
+    my_parameter_rand_by_name,
+    scoring=my_scoring_metric_name,
+    cv=5,
+    refit=False)
+
+rand_searcher.fit(tr_text_list, y_true)
+
+rand_search_results_df = pd.DataFrame(rand_searcher.cv_results_).copy()
+
+param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
+
+# Rearrange row order so it is easy to skim
+rand_search_results_df.sort_values(param_keys, inplace=True)
+
+var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
+
+print(var_2)
+
+plt.plot(fpr_tr, tpr_tr, '.-', color='b', lw=2, label=f'Training Set (AUC = {roc_auc_tr:.2f})')
+plt.plot(fpr_va, tpr_va, '.-', color='r', lw=2, label=f'Validation Set (AUC = {roc_auc_va:.2f})')
+
+plt.title("ROC on Training set and Validation Set");
+plt.xlabel('false positive rate');
+plt.ylabel('true positive rate');
+plt.legend(loc='lower right');
+B = 0.01
+
+plt.xlim([0 - B, 1 + B]);
+plt.ylim([0 - B, 1 + B]);
