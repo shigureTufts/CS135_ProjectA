@@ -46,33 +46,58 @@ for vocab_id, tok in enumerate(filtered_words):
     vocab_dict[tok] = vocab_id
 
 my_tfidf_classifier_pipeline = sklearn.pipeline.Pipeline([
-    ('my_bow_feature_extractor',
-     TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict, binary=False)),
+    ('my_tfidf_feature_extractor',
+     TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict)),
     ('my_classifier',
      sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101, solver='lbfgs'))
 ])
 
 
 my_parameter_grid_by_name = dict()
-my_parameter_grid_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
-my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-5, 5, 11)
+my_parameter_grid_by_name['my_tfidf_feature_extractor__min_df'] = [1]
+my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-10, 10, 101)
 y_true = np.ravel(y_train_df)
 grid_searcher = sklearn.model_selection.GridSearchCV(
     my_tfidf_classifier_pipeline,
     my_parameter_grid_by_name,
     scoring='accuracy',
     cv=10,
-    refit=False)
+    refit=False,
+    return_train_score=True,
+    n_jobs=-1
+)
 
 grid_searcher.fit(tr_text_list, y_true)
 
 gsearch_results_df = pd.DataFrame(grid_searcher.cv_results_).copy()
 
-param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
+param_keys = ['param_my_tfidf_feature_extractor__min_df', 'param_my_classifier__C']
 
 # Rearrange row order so it is easy to skim
 gsearch_results_df.sort_values(param_keys, inplace=True)
 
-var = gsearch_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
+var = gsearch_results_df[param_keys + ['mean_test_score', 'rank_test_score']]
 
 print(var)
+
+new_pipeline = sklearn.pipeline.Pipeline([
+    ('my_tfidf_feature_extractor', TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 2),
+                                                 vocabulary=vocab_dict, binary=False)),
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=6.309573, max_iter=1000,
+                                                              penalty='l2', solver='lbfgs'))
+])
+
+new_pipeline.fit(tr_text_list, y_true)
+yhat_tr_N = new_pipeline.predict(tr_text_list)
+acc = np.mean(y_true == yhat_tr_N)
+print(acc)
+
+yhat_test_N = new_pipeline.predict_proba(test_text_list)
+# yhat_test_N = new_pipeline.predict(test_text_list)
+
+print((np.array(yhat_test_N[:,1])).reshape(600,1))
+
+
+
+for param_name in sorted(my_parameter_grid_by_name.keys()):
+    print("%s: %r" % (param_name, grid_searcher.best_params_[param_name]))
