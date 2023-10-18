@@ -45,29 +45,45 @@ vocab_list = ['good', 'great', 'like', 'bad', 'best', 'love', 'excellent', 'bett
               'sucked', 'disappointment', 'unfortunately', 'mediocre', 'recommended', 'pleased', 'junk']
 
 nltk.download('stopwords')
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+
+
+def remove_proper_nouns_nltk(tokens):
+    # POS tagging with NLTK
+    tagged_tokens = nltk.tag.pos_tag(tokens)
+
+    # Remove tokens that are proper nouns
+    edited_tokens = [word for word, tag in tagged_tokens if tag != 'NNP' and tag != 'NNPS']
+
+    return edited_tokens
+
+
 useless = stopwords.words('english')
 
 # print(useless)
 filtered_words = [word for word in vocab_list_2 if not word in useless]
 
-print(filtered_words[1:])
-
+print(len(filtered_words[1:]))
+cleaned_text = remove_proper_nouns_nltk(filtered_words)
+print(len(cleaned_text[1:]))
 vocab_dict = dict()
 
-for vocab_id, tok in enumerate(filtered_words):
+for vocab_id, tok in enumerate(cleaned_text[1:]):
     vocab_dict[tok] = vocab_id
 
-bow_preprocessor = CountVectorizer(binary=False, vocabulary=vocab_dict)
-
-bow_preprocessor.fit(tr_text_list)
-
-sparse_arr = bow_preprocessor.transform(tr_text_list)
-
-print(sparse_arr.shape)
-
-dense_arr_NV = sparse_arr.toarray()
-
-print(dense_arr_NV.shape)
+# bow_preprocessor = CountVectorizer(binary=False, vocabulary=vocab_dict)
+#
+# bow_preprocessor.fit(tr_text_list)
+#
+# sparse_arr = bow_preprocessor.transform(tr_text_list)
+#
+# print(sparse_arr.shape)
+#
+# dense_arr_NV = sparse_arr.toarray()
+#
+# print(dense_arr_NV.shape)
 
 # print(dense_arr_NV)
 
@@ -84,7 +100,7 @@ print(dense_arr_NV.shape)
 my_bow_classifier_pipeline = sklearn.pipeline.Pipeline([
     ('my_bow_feature_extractor',
      CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101, solver='saga'))
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101))
 ])
 
 my_parameter_grid_by_name = dict()
@@ -147,16 +163,14 @@ print(acc)
 
 yhat_test_N = new_pipeline.predict_proba(test_text_list)
 
+float_y_test = yhat_test_N[:, 1]
 
-float_y_test = yhat_test_N[:,1]
+print(float_y_test)
 
-# print(float_y_test)
-#
-# print(float_y_test.T)
 
 my_parameter_rand_by_name = dict()
 my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
-my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1,2,1000)
+my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1, 2, 1000)
 
 rand_searcher = sklearn.model_selection.RandomizedSearchCV(
     my_bow_classifier_pipeline,
@@ -177,15 +191,3 @@ rand_search_results_df.sort_values(param_keys, inplace=True)
 var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
 
 print(var_2)
-
-plt.plot(fpr_tr, tpr_tr, '.-', color='b', lw=2, label=f'Training Set (AUC = {roc_auc_tr:.2f})')
-plt.plot(fpr_va, tpr_va, '.-', color='r', lw=2, label=f'Validation Set (AUC = {roc_auc_va:.2f})')
-
-plt.title("ROC on Training set and Validation Set");
-plt.xlabel('false positive rate');
-plt.ylabel('true positive rate');
-plt.legend(loc='lower right');
-B = 0.01
-
-plt.xlim([0 - B, 1 + B]);
-plt.ylim([0 - B, 1 + B]);
