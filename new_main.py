@@ -194,9 +194,9 @@ print(acc)
 # param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
 
 # Rearrange row order so it is easy to skim
-rand_search_results_df.sort_values(param_keys, inplace=True)
-
-var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
+# rand_search_results_df.sort_values(param_keys, inplace=True)
+#
+# var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
 
 # print(var_2)
 
