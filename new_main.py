@@ -8,8 +8,8 @@ import tokenize_text
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.corpus import stopwords
 
-pd.set_option('display.width', 400)
-pd.set_option('display.max_columns', 10)
+pd.set_option('display.width', 10000)
+pd.set_option('display.max_columns', 10000)
 
 data_dir = 'data_reviews'
 x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
@@ -99,13 +99,16 @@ for vocab_id, tok in enumerate(cleaned_text[1:]):
 
 my_bow_classifier_pipeline = sklearn.pipeline.Pipeline([
     ('my_bow_feature_extractor',
-     CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict, binary=False)),
+     CountVectorizer(min_df=1, max_df=1, ngram_range=(1, 3), vocabulary=vocab_dict, binary=False)),
     ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101))
 ])
 
 my_parameter_grid_by_name = dict()
-my_parameter_grid_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
+my_parameter_grid_by_name['my_bow_feature_extractor__min_df'] = [1, 2]
 my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-5, 5, 11)
+my_parameter_grid_by_name['my_bow_feature_extractor__max_df'] = [0.5, 0.7, 0.9, 1.0]
+my_parameter_grid_by_name['my_bow_feature_extractor__ngram_range'] = [(1,1), (1,2), (1,3)]
+# my_parameter_grid_by_name['my_classifier__max_iter'] = [100, 500, 1000, 5000]
 
 my_scoring_metric_name = 'accuracy'
 y_true = np.ravel(y_train_df)
@@ -125,7 +128,9 @@ grid_searcher = sklearn.model_selection.GridSearchCV(
     my_parameter_grid_by_name,
     scoring=my_scoring_metric_name,
     cv=5,
-    refit=False)
+    refit=False,
+    n_jobs=-1
+)
 
 grid_searcher.fit(tr_text_list, y_true)
 
@@ -151,9 +156,10 @@ print(var)
 
 
 new_pipeline = sklearn.pipeline.Pipeline([
-    ('my_bow_feature_extractor', CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1),
+    ('my_bow_feature_extractor', CountVectorizer(min_df=1, max_df=0.5, ngram_range=(1, 1),
                                                  vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=1000, random_state=101))
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=100, random_state=101,
+                                                              penalty='l2', solver='lbfgs'))
 ])
 
 new_pipeline.fit(tr_text_list, y_true)
@@ -161,33 +167,39 @@ yhat_tr_N = new_pipeline.predict(tr_text_list)
 acc = np.mean(y_true == yhat_tr_N)
 print(acc)
 
-yhat_test_N = new_pipeline.predict_proba(test_text_list)
+# # yhat_test_N = new_pipeline.predict_proba(test_text_list)
+# yhat_test_N = new_pipeline.predict(test_text_list)
+#
+# # float_y_test = yhat_test_N[:, 1]
+#
+# # print(float_y_test)
+# print((np.array(yhat_test_N)).reshape(600,1))
 
-float_y_test = yhat_test_N[:, 1]
 
-print(float_y_test)
-
-
-my_parameter_rand_by_name = dict()
-my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
-my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1, 2, 1000)
-
-rand_searcher = sklearn.model_selection.RandomizedSearchCV(
-    my_bow_classifier_pipeline,
-    my_parameter_rand_by_name,
-    scoring=my_scoring_metric_name,
-    cv=5,
-    refit=False)
-
-rand_searcher.fit(tr_text_list, y_true)
-
-rand_search_results_df = pd.DataFrame(rand_searcher.cv_results_).copy()
-
-param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
+# my_parameter_rand_by_name = dict()
+# my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
+# my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1, 2, 1000)
+#
+# rand_searcher = sklearn.model_selection.RandomizedSearchCV(
+#     my_bow_classifier_pipeline,
+#     my_parameter_rand_by_name,
+#     scoring=my_scoring_metric_name,
+#     cv=5,
+#     refit=False)
+#
+# rand_searcher.fit(tr_text_list, y_true)
+#
+# rand_search_results_df = pd.DataFrame(rand_searcher.cv_results_).copy()
+#
+# param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
 
 # Rearrange row order so it is easy to skim
 rand_search_results_df.sort_values(param_keys, inplace=True)
 
 var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
 
-print(var_2)
+# print(var_2)
+
+
+for param_name in sorted(my_parameter_grid_by_name.keys()):
+    print("%s: %r" % (param_name, grid_searcher.best_params_[param_name]))
