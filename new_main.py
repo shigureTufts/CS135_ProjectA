@@ -1,10 +1,13 @@
 import os
+import re
+
 import numpy as np
 import pandas as pd
 import sklearn.linear_model
 import sklearn.pipeline
 import nltk
-import tokenize_text
+from tokenize_text import tokenize_text
+from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.corpus import stopwords
 
@@ -25,24 +28,34 @@ tr_text_list = x_train_df['text'].values.tolist()
 
 test_text_list = x_test_df['text'].values.tolist()
 
+
+def normalize_string(s):
+    return re.sub(r'(.)\1{2,}', r'\1', s)
+
+def normalize_list_of_strings(strings):
+    return [normalize_string(s) for s in strings]
+
+normalized = normalize_list_of_strings(tr_text_list)
+
 ###########################################################################################################
 tok_count_dict = dict()
-for line in tr_text_list:
-    tok_list = tokenize_text.tokenize_text(line)
+for line in normalized:
+    tok_list = tokenize_text(line)
     for tok in tok_list:
         if tok in tok_count_dict:
             tok_count_dict[tok] += 1
         else:
             tok_count_dict[tok] = 1
 sorted_tokens = list(sorted(tok_count_dict, key=tok_count_dict.get, reverse=True))
-vocab_list_2 = [w for w in sorted_tokens if tok_count_dict[w] >= 1]
-vocab_list = ['good', 'great', 'like', 'bad', 'best', 'love', 'excellent', 'better', 'recommend',
-              'nice', 'disappointed', 'pretty', 'worst', 'waste', 'amazing', 'terrible', 'wonderful',
-              'poor', 'friendly', 'loved', 'delicious', 'horrible', 'cool', 'happy', 'awesome', 'awful',
-              'stupid', 'perfect', 'impressed', 'comfortable', 'fantastic', 'beautiful', 'interesting',
-              'perfectly', 'disappointing', 'super', 'fast', 'problem', 'bland', 'worse', 'enjoyed', 'fresh',
-              'avoid', 'incredible', 'didn\'t work', 'weird', 'useless', 'enjoy',
-              'sucked', 'disappointment', 'unfortunately', 'mediocre', 'recommended', 'pleased', 'junk']
+vocab_list = [w for w in sorted_tokens if tok_count_dict[w] >= 1]
+
+# vocab_list_manual = ['good', 'great', 'like', 'bad', 'best', 'love', 'excellent', 'better', 'recommend',
+#               'nice', 'disappointed', 'pretty', 'worst', 'waste', 'amazing', 'terrible', 'wonderful',
+#               'poor', 'friendly', 'loved', 'delicious', 'horrible', 'cool', 'happy', 'awesome', 'awful',
+#               'stupid', 'perfect', 'impressed', 'comfortable', 'fantastic', 'beautiful', 'interesting',
+#               'perfectly', 'disappointing', 'super', 'fast', 'problem', 'bland', 'worse', 'enjoyed', 'fresh',
+#               'avoid', 'incredible', 'didn\'t work', 'weird', 'useless', 'enjoy',
+#               'sucked', 'disappointment', 'unfortunately', 'mediocre', 'recommended', 'pleased', 'junk']
 
 nltk.download('stopwords')
 
@@ -63,14 +76,19 @@ def remove_proper_nouns_nltk(tokens):
 useless = stopwords.words('english')
 
 # print(useless)
-filtered_words = [word for word in vocab_list_2 if not word in useless]
+filtered_words = [word for word in vocab_list if not word in useless]
 
 print(len(filtered_words[1:]))
 cleaned_text = remove_proper_nouns_nltk(filtered_words)
 print(len(cleaned_text[1:]))
+print(cleaned_text[1:])
+
+
+
+
 vocab_dict = dict()
 
-for vocab_id, tok in enumerate(cleaned_text[1:]):
+for vocab_id, tok in enumerate(cleaned_text):
     vocab_dict[tok] = vocab_id
 
 # bow_preprocessor = CountVectorizer(binary=False, vocabulary=vocab_dict)
@@ -100,28 +118,21 @@ for vocab_id, tok in enumerate(cleaned_text[1:]):
 my_bow_classifier_pipeline = sklearn.pipeline.Pipeline([
     ('my_bow_feature_extractor',
      CountVectorizer(min_df=1, max_df=1, ngram_range=(1, 3), vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101))
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101,
+                                                              penalty='l2', solver='lbfgs'))
 ])
 
 my_parameter_grid_by_name = dict()
-my_parameter_grid_by_name['my_bow_feature_extractor__min_df'] = [1, 2]
+my_parameter_grid_by_name['my_bow_feature_extractor__min_df'] = [1]
 my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-5, 5, 11)
-my_parameter_grid_by_name['my_bow_feature_extractor__max_df'] = [0.5, 0.7, 0.9, 1.0]
-my_parameter_grid_by_name['my_bow_feature_extractor__ngram_range'] = [(1,1), (1,2), (1,3)]
-# my_parameter_grid_by_name['my_classifier__max_iter'] = [100, 500, 1000, 5000]
+# my_parameter_grid_by_name['my_bow_feature_extractor__max_df'] = [0.5, 0.7, 0.9, 1.0]
+# my_parameter_grid_by_name['my_bow_feature_extractor__ngram_range'] = [(1,1), (1,2), (1,3)]
+my_parameter_grid_by_name['my_classifier__max_iter'] = [100, 500, 1000, 5000]
 
 my_scoring_metric_name = 'accuracy'
 y_true = np.ravel(y_train_df)
 # print(y_true)
 
-prng = np.random.RandomState(0)
-
-valid_ids = prng.choice(np.arange(N), size=800)
-
-valid_indicators_N = np.zeros(N)
-valid_indicators_N[valid_ids] = -1
-
-my_splitter = sklearn.model_selection.PredefinedSplit(valid_indicators_N)
 
 grid_searcher = sklearn.model_selection.GridSearchCV(
     my_bow_classifier_pipeline,
@@ -129,6 +140,7 @@ grid_searcher = sklearn.model_selection.GridSearchCV(
     scoring=my_scoring_metric_name,
     cv=5,
     refit=False,
+    return_train_score=True,
     n_jobs=-1
 )
 
@@ -156,10 +168,10 @@ print(var)
 
 
 new_pipeline = sklearn.pipeline.Pipeline([
-    ('my_bow_feature_extractor', CountVectorizer(min_df=1, max_df=0.5, ngram_range=(1, 1),
+    ('my_bow_feature_extractor', CountVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 2),
                                                  vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=100, random_state=101,
-                                                              penalty='l2', solver='lbfgs'))
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=10.0, max_iter=1000, random_state=101,
+                                                              penalty='l2', solver='liblinear'))
 ])
 
 new_pipeline.fit(tr_text_list, y_true)
@@ -167,38 +179,40 @@ yhat_tr_N = new_pipeline.predict(tr_text_list)
 acc = np.mean(y_true == yhat_tr_N)
 print(acc)
 
-# # yhat_test_N = new_pipeline.predict_proba(test_text_list)
-# yhat_test_N = new_pipeline.predict(test_text_list)
-#
-# # float_y_test = yhat_test_N[:, 1]
-#
-# # print(float_y_test)
-# print((np.array(yhat_test_N)).reshape(600,1))
+# yhat_test_N = new_pipeline.predict_proba(test_text_list)
+yhat_test_N = new_pipeline.predict(test_text_list)
+
+# float_y_test = yhat_test_N[:, 1]
+
+# print(float_y_test)
+print((np.array(yhat_test_N)).reshape(600,1))
 
 
-# my_parameter_rand_by_name = dict()
-# my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1, 2, 4]
-# my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.1, 2, 1000)
-#
-# rand_searcher = sklearn.model_selection.RandomizedSearchCV(
-#     my_bow_classifier_pipeline,
-#     my_parameter_rand_by_name,
-#     scoring=my_scoring_metric_name,
-#     cv=5,
-#     refit=False)
-#
-# rand_searcher.fit(tr_text_list, y_true)
-#
-# rand_search_results_df = pd.DataFrame(rand_searcher.cv_results_).copy()
-#
-# param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
+my_parameter_rand_by_name = dict()
+my_parameter_rand_by_name['my_bow_feature_extractor__min_df'] = [1]
+my_parameter_rand_by_name['my_classifier__C'] = np.random.uniform(0.0, 1.0, 100000)
+
+rand_searcher = sklearn.model_selection.RandomizedSearchCV(
+    my_bow_classifier_pipeline,
+    my_parameter_rand_by_name,
+    scoring=my_scoring_metric_name,
+    cv=5,
+    refit=False,
+    random_state=101
+    )
+
+rand_searcher.fit(tr_text_list, y_true)
+
+rand_search_results_df = pd.DataFrame(rand_searcher.cv_results_).copy()
+
+param_keys = ['param_my_bow_feature_extractor__min_df', 'param_my_classifier__C']
 
 # Rearrange row order so it is easy to skim
-# rand_search_results_df.sort_values(param_keys, inplace=True)
-#
-# var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']]
+rand_search_results_df.sort_values(param_keys, inplace=True)
 
-# print(var_2)
+var_2 = rand_search_results_df[param_keys + ['split0_test_score', 'rank_test_score']].round(3)
+
+print(var_2)
 
 
 for param_name in sorted(my_parameter_grid_by_name.keys()):
