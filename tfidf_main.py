@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import sklearn
 import sklearn.linear_model
 import sklearn.pipeline
 import nltk
@@ -46,16 +47,15 @@ for vocab_id, tok in enumerate(filtered_words):
     vocab_dict[tok] = vocab_id
 
 my_tfidf_classifier_pipeline = sklearn.pipeline.Pipeline([
-    ('my_tfidf_feature_extractor',
-     TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1), vocabulary=vocab_dict)),
-    ('my_classifier',
-     sklearn.linear_model.LogisticRegression(C=1.0, max_iter=10000, random_state=101, solver='lbfgs'))
+    ('my_tfidf_feature_extractor', TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 4),
+                                                   vocabulary=vocab_dict)),
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=1.0, max_iter=1000, random_state=101, solver='lbfgs'))
 ])
 
-
 my_parameter_grid_by_name = dict()
-my_parameter_grid_by_name['my_tfidf_feature_extractor__min_df'] = [1]
-my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-10, 10, 101)
+my_parameter_grid_by_name['my_tfidf_feature_extractor__min_df'] = [1, 2]
+my_parameter_grid_by_name['my_tfidf_feature_extractor__ngram_range'] = [(1, 1),(1, 2)]
+my_parameter_grid_by_name['my_classifier__C'] = np.logspace(-6, 6, 13)
 y_true = np.ravel(y_train_df)
 grid_searcher = sklearn.model_selection.GridSearchCV(
     my_tfidf_classifier_pipeline,
@@ -64,7 +64,8 @@ grid_searcher = sklearn.model_selection.GridSearchCV(
     cv=10,
     refit=False,
     return_train_score=True,
-    n_jobs=-1
+    n_jobs=-1,
+    error_score='raise'
 )
 
 grid_searcher.fit(tr_text_list, y_true)
@@ -81,9 +82,9 @@ var = gsearch_results_df[param_keys + ['mean_test_score', 'rank_test_score']]
 print(var)
 
 new_pipeline = sklearn.pipeline.Pipeline([
-    ('my_tfidf_feature_extractor', TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 2),
-                                                 vocabulary=vocab_dict, binary=False)),
-    ('my_classifier', sklearn.linear_model.LogisticRegression(C=6.309573, max_iter=1000,
+    ('my_tfidf_feature_extractor', TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(1, 1),
+                                                   vocabulary=vocab_dict, binary=False)),
+    ('my_classifier', sklearn.linear_model.LogisticRegression(C=10, max_iter=1000,
                                                               penalty='l2', solver='lbfgs'))
 ])
 
@@ -92,11 +93,10 @@ yhat_tr_N = new_pipeline.predict(tr_text_list)
 acc = np.mean(y_true == yhat_tr_N)
 print(acc)
 
-yhat_test_N = new_pipeline.predict_proba(test_text_list)
-# yhat_test_N = new_pipeline.predict(test_text_list)
+# yhat_test_N = new_pipeline.predict_proba(test_text_list)
+yhat_test_N = new_pipeline.predict(test_text_list)
 
-print((np.array(yhat_test_N[:,1])).reshape(600,1))
-
+# print((np.array(yhat_test_N)).reshape(600,1))
 
 
 for param_name in sorted(my_parameter_grid_by_name.keys()):
