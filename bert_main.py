@@ -6,6 +6,7 @@ import sklearn.linear_model
 import sklearn.pipeline
 import nltk
 import spacy
+from sklearn.ensemble import RandomForestClassifier
 from spacy.lang.en.stop_words import STOP_WORDS
 from sklearn.linear_model import SGDClassifier
 import tokenize_text
@@ -60,7 +61,7 @@ x_test_embed = np.load('data_reviews/x_test_BERT_embeddings.npy')
 my_tfidf_classifier_pipeline = sklearn.pipeline.Pipeline([
     ('my_tfidf_feature_extractor', TfidfVectorizer(min_df=1, max_df=1.0, ngram_range=(2, 4),
                                                    vocabulary=vocab_dict, lowercase=False)),
-    ('my_classifier', SGDClassifier(penalty='l2',alpha=1e-3, random_state=42,max_iter=1000, tol=None))
+    ('my_classifier', RandomForestClassifier())
 ])
 
 my_parameter_grid_by_name = dict()
