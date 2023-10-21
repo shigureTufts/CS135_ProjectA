@@ -219,3 +219,4 @@ print(var_2)
 
 for param_name in sorted(my_parameter_rand_by_name.keys()):
     print("%s: %r" % (param_name, rand_searcher.best_params_[param_name]))
+
